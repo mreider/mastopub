@@ -18,9 +18,16 @@ When you add `mastodon: true` to a post's frontmatter and push to GitHub, this a
 3. Fill in:
    - **Application name:** `Blog Publisher` (or whatever you want)
    - **Website:** Your blog URL (optional, just for reference)
-   - **Scopes:** Check only **`write:statuses`**
+   - **Redirect URI:** Leave as default (`urn:ietf:wg:oauth:2.0:oob`)
+   - **Scopes:** Check **`write:statuses`** and **`write:media`** (uncheck everything else)
 4. Click **Submit**
-5. Copy the **Access Token** (you'll need this in Step 2)
+5. You'll see three credentials:
+   ```
+   Client key:        (ignore this)
+   Client secret:     (ignore this)
+   Your access token: abc123xyz...  ← Copy THIS one
+   ```
+   Only the **access token** is needed. The client key and secret are for OAuth flows which we don't use.
 
 ### Step 2: Add Secrets to Your GitHub Repository
 
@@ -93,10 +100,42 @@ Add `mastodon: true` to the frontmatter of any post you want to publish:
 title: "My Blog Post Title"
 date: 2025-01-17
 author: "Your Name"
-mastodon: true          # ← Add this line
+image: "/images/featured.jpg"
+mastodon: true
+---
+```
+
+This posts a **single toot** with:
+- Default text: "My latest post: {title}"
+- Link to your blog post
+- Featured image attached
+
+#### Customizing the Toot Text
+
+Add `mastodon_text` to write your own message:
+
+```yaml
+---
+title: "My Blog Post Title"
+image: "/images/featured.jpg"
+mastodon: true
+mastodon_text: "Just published my thoughts on AI and creativity. Check it out!"
+---
+```
+
+#### Full Thread Mode
+
+To post the **entire article** as a threaded series of posts, add `mastodon_thread: true`:
+
+```yaml
+---
+title: "My Blog Post Title"
+image: "/images/featured.jpg"
+mastodon: true
+mastodon_thread: true
 ---
 
-Your post content here...
+Your full post content here will be split into a thread...
 ```
 
 ### Step 5: Push and Publish
@@ -136,7 +175,29 @@ The action will:
 
 ---
 
+## Frontmatter Options
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `mastodon: true` | Yes | Enable Mastodon posting for this post |
+| `mastodon_text` | No | Custom text for single post (default: "My latest post: {title}") |
+| `mastodon_thread: true` | No | Post full content as a thread instead of single post |
+| `image` | No | Featured image URL, attached to first/only post |
+
+---
+
 ## How It Works
+
+### Posting Modes
+
+**Single Post (default):**
+- Posts one toot with your custom text (or default message) + link + featured image
+- Best for sharing new posts with a brief intro
+
+**Thread Mode (`mastodon_thread: true`):**
+- Posts the entire article content as a series of replies
+- Featured image on first post, body images distributed throughout
+- Best for long-form content you want fully readable on Mastodon
 
 ### Thread Format
 
@@ -156,11 +217,38 @@ https://yourblog.com/tech/my-post/
 [Next chunk of content...]
 ```
 
+### Image Support
+
+Mastopub automatically includes images in your Mastodon thread:
+
+- **Featured image** (from `image:` frontmatter) → Attached to the first post
+- **Body images** (markdown `![alt](url)`) → Attached to the post containing that section of content
+
+Images are downloaded from your blog and uploaded to Mastodon. Each post can have up to 4 images (Mastodon's limit).
+
+Example post with images:
+```yaml
+---
+title: "My Trip to Japan"
+image: "/images/tokyo-skyline.jpg"  # ← Featured image on first post
+mastodon: true
+---
+
+Here's what I saw on day one...
+
+![Temple in Kyoto](/images/kyoto-temple.jpg)  # ← Attached to this chunk
+
+More text about the trip...
+
+![Mount Fuji](/images/fuji.jpg)  # ← Attached to this chunk
+```
+
 ### Content Processing
 
-1. **Removes markdown formatting** - Images, links (keeps text), code blocks, emphasis
-2. **Splits at natural boundaries** - Paragraphs first, then sentences, then words
-3. **Respects character limits** - Each chunk is ≤480 characters (safe margin for 500 limit)
+1. **Extracts images** - Featured image and body images are uploaded to Mastodon
+2. **Removes markdown formatting** - Links (keeps text), code blocks, emphasis
+3. **Splits at natural boundaries** - Paragraphs first, then sentences, then words
+4. **Respects character limits** - Each chunk is ≤480 characters (safe margin for 500 limit)
 
 ### Tracking
 
@@ -231,8 +319,14 @@ Run the workflow manually with "Dry run" checked, or:
 ### "401 Unauthorized"
 
 - Verify your access token is correct
-- Make sure the token has `write:statuses` scope
+- Make sure the token has `write:statuses` and `write:media` scopes
 - Check that the `MASTODON_ACCESS_TOKEN` secret is set correctly
+
+### Images not appearing
+
+- Make sure your token has `write:media` scope
+- Check that the image URLs are accessible (not behind auth)
+- Verify images are standard formats (jpg, png, gif, webp)
 
 ### "404 Not Found"
 
