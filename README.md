@@ -1,62 +1,122 @@
 # Mastopub
 
-A GitHub Action that automatically publishes Hugo blog posts to Mastodon as threaded posts.
+Automatically publish your Hugo blog posts to Mastodon.
 
-When you add `mastodon: true` to a post's frontmatter and push to GitHub, this action will:
-1. Parse the post content
-2. Split it into thread-sized chunks (at paragraph/sentence boundaries)
-3. Post it as a thread on Mastodon with a link to your article
-4. Track what's been posted to avoid duplicates
+Add `mastodon: true` to a post's frontmatter, push to GitHub, and it shows up on Mastodon. That's it.
 
-## Quick Start
+## See It In Action
+
+Here's a real example from [mreider.com](https://mreider.com):
+
+**The blog post:** [Lost and Found](https://mreider.com/life/lost-and-found/)
+
+**The frontmatter change:** [Just two lines added](https://github.com/mreider/mreider.com/commit/30b13f7c586c09e1f34714702ff33cb026562665)
+
+```yaml
+mastodon: true
+mastodon_thread: true
+```
+
+**The result on Mastodon:** [Full thread with images](https://ieji.de/@mateo/115910965322919799)
+
+---
+
+## Two Posting Modes
+
+**Single Post (default)** — A toot announcing your post with a link and featured image:
+```yaml
+mastodon: true
+```
+Result: "My latest post: Lost and Found" + link + image
+
+**Thread Mode** — Your entire article as a series of connected posts:
+```yaml
+mastodon: true
+mastodon_thread: true
+```
+Result: Full article split into chunks, images attached where they appear in the text.
+
+You can also write custom text for single posts:
+```yaml
+mastodon: true
+mastodon_text: "Just wrote about Austria's incredible lost-and-found system."
+```
+
+---
+
+## Setup Guide
 
 ### Step 1: Create a Mastodon Application
 
-1. Log in to your Mastodon instance (e.g., `mastodon.social`, `hachyderm.io`, `ieji.de`)
-2. Go to **Preferences** → **Development** → **New Application**
-   - Or navigate directly to: `https://YOUR-INSTANCE/settings/applications`
-3. Fill in:
-   - **Application name:** `Blog Publisher` (or whatever you want)
-   - **Website:** Your blog URL (optional, just for reference)
-   - **Redirect URI:** Leave as default (`urn:ietf:wg:oauth:2.0:oob`)
-   - **Scopes:** Check **`write:statuses`** and **`write:media`** (uncheck everything else)
-4. Click **Submit**
-5. You'll see three credentials:
-   ```
-   Client key:        (ignore this)
-   Client secret:     (ignore this)
-   Your access token: abc123xyz...  ← Copy THIS one
-   ```
-   Only the **access token** is needed. The client key and secret are for OAuth flows which we don't use.
+Go to your Mastodon instance's settings. In the left sidebar, click **Development**.
 
-### Step 2: Add Secrets to Your GitHub Repository
+![Development menu](docs/images/01-development-menu.png)
 
-Go to your Hugo blog's GitHub repository:
+Click **New application** and fill in the form:
+- **Application name:** Whatever you want (e.g., "Blog Publisher")
+- **Website:** Your blog URL (optional)
+- **Redirect URI:** Leave as default
 
-1. Navigate to **Settings** → **Secrets and variables** → **Actions**
-2. Click **New repository secret**
-3. Add this secret:
+![New application form](docs/images/02-new-application-form.png)
 
-| Name | Value |
-|------|-------|
-| `MASTODON_ACCESS_TOKEN` | Your access token from Step 1 |
+Scroll down to **Scopes**. Check only these two:
+- **write:statuses** — to post toots
+- **write:media** — to upload images
+
+Uncheck everything else.
+
+![Select scopes](docs/images/03-select-scopes.png)
+
+Click **Submit**. You'll see your new application listed.
+
+![Application created](docs/images/04-application-created.png)
+
+Click on your application name to see its details. You'll see three values:
+
+```
+Client key:        (ignore)
+Client secret:     (ignore)
+Your access token: ← Copy this one
+```
+
+![Copy access token](docs/images/05-copy-access-token.png)
+
+Copy the **access token**. That's the only thing you need.
+
+---
+
+### Step 2: Add the Token to GitHub
+
+Go to your blog's GitHub repository. Navigate to:
+
+**Settings → Secrets and variables → Actions**
+
+![GitHub secrets page](docs/images/06-github-secrets-page.png)
+
+Click **New repository secret** and add:
+- **Name:** `MASTODON_ACCESS_TOKEN`
+- **Secret:** Paste your access token
+
+![Add secret](docs/images/07-add-secret.png)
+
+Click **Add secret**.
+
+---
 
 ### Step 3: Create the Workflow File
 
-Create a file in your Hugo repository at `.github/workflows/mastodon.yml`:
+Create this file in your blog repository at `.github/workflows/mastodon.yml`:
 
 ```yaml
 name: Post to Mastodon
 
 on:
-  # Runs after your Hugo site deploys
   push:
     branches:
       - main
     paths:
       - 'content/**'
 
-  # Allows manual testing
   workflow_dispatch:
     inputs:
       dry_run:
@@ -73,9 +133,9 @@ jobs:
       - name: Post to Mastodon
         uses: mreider/mastopub@v1
         with:
-          mastodon_instance: 'https://mastodon.social'  # ← Change to your instance
+          mastodon_instance: 'https://mastodon.social'  # ← Your instance
           mastodon_token: ${{ secrets.MASTODON_ACCESS_TOKEN }}
-          blog_url: 'https://yourblog.com'              # ← Change to your blog URL
+          blog_url: 'https://yourblog.com'              # ← Your blog URL
           dry_run: ${{ inputs.dry_run || 'false' }}
 
       - name: Commit tracking file
@@ -87,255 +147,102 @@ jobs:
           git push
 ```
 
-**Important:** Change these values:
-- `mastodon_instance`: Your Mastodon server URL (e.g., `https://ieji.de`)
-- `blog_url`: Your blog's URL (e.g., `https://mreider.com`)
+Change these two values:
+- `mastodon_instance`: Your Mastodon server (e.g., `https://mastodon.social`, `https://hachyderm.io`)
+- `blog_url`: Your blog's URL
+
+---
 
 ### Step 4: Mark Posts for Mastodon
 
-Add `mastodon: true` to the frontmatter of any post you want to publish:
+Add frontmatter to any post you want to publish:
 
 ```yaml
 ---
-title: "My Blog Post Title"
+title: "My Blog Post"
 date: 2025-01-17
-author: "Your Name"
 image: "/images/featured.jpg"
 mastodon: true
 ---
 ```
 
-This posts a **single toot** with:
-- Default text: "My latest post: {title}"
-- Link to your blog post
-- Featured image attached
-
-#### Customizing the Toot Text
-
-Add `mastodon_text` to write your own message:
-
-```yaml
----
-title: "My Blog Post Title"
-image: "/images/featured.jpg"
-mastodon: true
-mastodon_text: "Just published my thoughts on AI and creativity. Check it out!"
----
-```
-
-#### Full Thread Mode
-
-To post the **entire article** as a threaded series of posts, add `mastodon_thread: true`:
-
-```yaml
----
-title: "My Blog Post Title"
-image: "/images/featured.jpg"
-mastodon: true
-mastodon_thread: true
----
-
-Your full post content here will be split into a thread...
-```
-
-### Step 5: Push and Publish
-
-```bash
-git add .
-git commit -m "Add new blog post"
-git push
-```
-
-The action will:
-1. Find all posts with `mastodon: true`
-2. Check which ones haven't been posted yet
-3. Post new ones as Mastodon threads
-4. Save the tracking file to prevent re-posting
+Push to GitHub. The workflow runs automatically and posts to Mastodon.
 
 ---
 
-## Configuration Reference
-
-### Action Inputs
-
-| Input | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `mastodon_instance` | Yes | - | Your Mastodon instance URL |
-| `mastodon_token` | Yes | - | Your Mastodon access token |
-| `blog_url` | Yes | - | Your blog's base URL |
-| `content_dir` | No | `content` | Path to Hugo content directory |
-| `visibility` | No | `public` | Post visibility: `public`, `unlisted`, or `private` |
-| `dry_run` | No | `false` | Test without actually posting |
-
-### Action Outputs
-
-| Output | Description |
-|--------|-------------|
-| `posts_published` | Number of posts published in this run |
-
----
-
-## Frontmatter Options
+## Frontmatter Reference
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `mastodon: true` | Yes | Enable Mastodon posting for this post |
-| `mastodon_text` | No | Custom text for single post (default: "My latest post: {title}") |
-| `mastodon_thread: true` | No | Post full content as a thread instead of single post |
-| `image` | No | Featured image URL, attached to first/only post |
+| `mastodon: true` | Yes | Enable Mastodon posting |
+| `mastodon_text` | No | Custom text for single post |
+| `mastodon_thread: true` | No | Post full article as thread |
+| `image` | No | Featured image (attached to first post) |
 
 ---
 
 ## How It Works
 
-### Posting Modes
+1. **Finds posts** with `mastodon: true` in frontmatter
+2. **Checks** `.github/mastodon-published.json` to skip already-posted articles
+3. **Uploads images** from your blog to Mastodon
+4. **Posts** either a single toot or a thread (depending on mode)
+5. **Tracks** what's been posted to prevent duplicates
 
-**Single Post (default):**
-- Posts one toot with your custom text (or default message) + link + featured image
-- Best for sharing new posts with a brief intro
+### Image Handling
 
-**Thread Mode (`mastodon_thread: true`):**
-- Posts the entire article content as a series of replies
-- Featured image on first post, body images distributed throughout
-- Best for long-form content you want fully readable on Mastodon
-
-### Thread Format
-
-For each blog post, Mastopub creates a thread like this:
-
-**First post:**
-```
-My Blog Post Title
-
-https://yourblog.com/tech/my-post/
-
-[First ~400 characters of content...]
-```
-
-**Reply posts:**
-```
-[Next chunk of content...]
-```
-
-### Image Support
-
-Mastopub automatically includes images in your Mastodon thread:
-
-- **Featured image** (from `image:` frontmatter) → Attached to the first post
-- **Body images** (markdown `![alt](url)`) → Attached to the post containing that section of content
-
-Images are downloaded from your blog and uploaded to Mastodon. Each post can have up to 4 images (Mastodon's limit).
-
-Example post with images:
-```yaml
----
-title: "My Trip to Japan"
-image: "/images/tokyo-skyline.jpg"  # ← Featured image on first post
-mastodon: true
----
-
-Here's what I saw on day one...
-
-![Temple in Kyoto](/images/kyoto-temple.jpg)  # ← Attached to this chunk
-
-More text about the trip...
-
-![Mount Fuji](/images/fuji.jpg)  # ← Attached to this chunk
-```
+- **Featured image** (from `image:` frontmatter) goes on the first post
+- **Body images** (markdown `![alt](url)`) attach to whichever chunk contains that text
+- Each post can have up to 4 images (Mastodon's limit)
 
 ### Content Processing
 
-1. **Extracts images** - Featured image and body images are uploaded to Mastodon
-2. **Removes markdown formatting** - Links (keeps text), code blocks, emphasis
-3. **Splits at natural boundaries** - Paragraphs first, then sentences, then words
-4. **Respects character limits** - Each chunk is ≤480 characters (safe margin for 500 limit)
-
-### Tracking
-
-Published posts are tracked in `.github/mastodon-published.json`:
-
-```json
-{
-  "published": [
-    "content/tech/my-first-post/index.md",
-    "content/life/another-post/index.md"
-  ]
-}
-```
-
-This file is committed automatically to prevent duplicate posts.
+- Removes markdown formatting (bold, links, code blocks, etc.)
+- Splits at paragraph boundaries, then sentences
+- Each chunk is ≤480 characters (under Mastodon's 500 limit)
 
 ---
 
-## Examples
+## Testing
 
-### Run After Hugo Deploy
+Run the workflow manually with "dry run" enabled to see what would be posted without actually posting:
 
-If you have an existing Hugo deploy workflow, trigger Mastopub after it completes:
+1. Go to **Actions** → **Post to Mastodon**
+2. Click **Run workflow**
+3. Check **Dry run**
+4. Click **Run workflow**
 
-```yaml
-on:
-  workflow_run:
-    workflows: ["Deploy Hugo Site"]  # ← Your deploy workflow name
-    types:
-      - completed
-    branches:
-      - main
-```
-
-### Post as Unlisted
-
-```yaml
-- uses: mreider/mastopub@v1
-  with:
-    mastodon_instance: 'https://mastodon.social'
-    mastodon_token: ${{ secrets.MASTODON_ACCESS_TOKEN }}
-    blog_url: 'https://yourblog.com'
-    visibility: 'unlisted'
-```
-
-### Test Without Posting
-
-Run the workflow manually with "Dry run" checked, or:
-
-```yaml
-- uses: mreider/mastopub@v1
-  with:
-    mastodon_instance: 'https://mastodon.social'
-    mastodon_token: ${{ secrets.MASTODON_ACCESS_TOKEN }}
-    blog_url: 'https://yourblog.com'
-    dry_run: 'true'
-```
+Check the logs to see the output.
 
 ---
 
 ## Troubleshooting
 
-### "No new posts to publish"
-
-- Check that your post has `mastodon: true` in the frontmatter
-- Check that the post path isn't already in `.github/mastodon-published.json`
-
-### "401 Unauthorized"
-
-- Verify your access token is correct
+**"401 Unauthorized"**
+- Check that your access token is correct
 - Make sure the token has `write:statuses` and `write:media` scopes
-- Check that the `MASTODON_ACCESS_TOKEN` secret is set correctly
+- Verify the `MASTODON_ACCESS_TOKEN` secret is set in GitHub
 
-### Images not appearing
+**"No new posts to publish"**
+- Check that your post has `mastodon: true` in the frontmatter
+- Check `.github/mastodon-published.json` — the post might already be tracked
 
+**Images not appearing**
 - Make sure your token has `write:media` scope
-- Check that the image URLs are accessible (not behind auth)
-- Verify images are standard formats (jpg, png, gif, webp)
+- Check that image URLs are publicly accessible
 
-### "404 Not Found"
+---
 
-- Verify your `mastodon_instance` URL is correct (include `https://`)
+## Configuration
 
-### Posts appearing twice
-
-- Make sure the workflow commits the tracking file after posting
-- Check that the tracking file commit step has push permissions
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `mastodon_instance` | Yes | — | Your Mastodon instance URL |
+| `mastodon_token` | Yes | — | Your access token (use a secret) |
+| `blog_url` | Yes | — | Your blog's base URL |
+| `content_dir` | No | `content` | Path to Hugo content directory |
+| `visibility` | No | `public` | Post visibility: `public`, `unlisted`, `private` |
+| `dry_run` | No | `false` | Test without posting |
 
 ---
 

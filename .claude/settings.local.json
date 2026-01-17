@@ -4,7 +4,9 @@
       "Bash(git -C ~/mreider.com log --oneline --max-count=10)",
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(ls:*)"
     ]
   }
 }
