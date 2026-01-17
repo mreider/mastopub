@@ -1,0 +1,59 @@
+name: 'Mastopub'
+description: 'Automatically publish Hugo blog posts to Mastodon as threaded posts'
+author: 'mreider'
+branding:
+  icon: 'send'
+  color: 'purple'
+
+inputs:
+  mastodon_instance:
+    description: 'Your Mastodon instance URL (e.g., https://mastodon.social)'
+    required: true
+  mastodon_token:
+    description: 'Your Mastodon access token (use a secret)'
+    required: true
+  blog_url:
+    description: 'Your blog base URL (e.g., https://mreider.com)'
+    required: true
+  content_dir:
+    description: 'Path to Hugo content directory'
+    required: false
+    default: 'content'
+  visibility:
+    description: 'Mastodon post visibility (public, unlisted, private)'
+    required: false
+    default: 'public'
+  dry_run:
+    description: 'Run without posting (for testing)'
+    required: false
+    default: 'false'
+
+outputs:
+  posts_published:
+    description: 'Number of posts published'
+    value: ${{ steps.post.outputs.posts_published }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      shell: bash
+      run: pip install requests python-frontmatter
+
+    - name: Post to Mastodon
+      id: post
+      shell: bash
+      env:
+        MASTODON_INSTANCE: ${{ inputs.mastodon_instance }}
+        MASTODON_ACCESS_TOKEN: ${{ inputs.mastodon_token }}
+        BLOG_BASE_URL: ${{ inputs.blog_url }}
+        BLOG_CONTENT_DIR: ${{ github.workspace }}/${{ inputs.content_dir }}
+        TRACKING_FILE: .github/mastodon-published.json
+        MASTODON_VISIBILITY: ${{ inputs.visibility }}
+        DRY_RUN: ${{ inputs.dry_run }}
+      run: python ${{ github.action_path }}/scripts/post_to_mastodon.py
